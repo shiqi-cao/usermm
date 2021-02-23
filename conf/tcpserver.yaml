@@ -7,8 +7,8 @@ server:
 db:
   host: 127.0.0.1:3306
   user: root
-  passwd: passwd
-  db: test
+  passwd: Ailyc84310!
+  db: entry_test
   conn:
     maxidle: 50
     maxopen: 120

@@ -1,24 +1,24 @@
 PROJECT_PATH=$(pwd)
 
-killProc() {
+closeProc() {
     server=$1
     ps -fe|grep ${server}|grep -v grep
     if [ $? -ne 0 ]
     then
-        echo "${server} not exits"
+        echo "${server} not existed"
     else
-        echo "killing old ${server}"
+        echo "Closing old ${server}"
         killall ${server}
     fi
 }
 
-config() {
+start_log() {
     cd ${PROJECT_PATH}
     mkdir -p logs
     chmod 777 logs
 }
 
-start() {
+start_server() {
     server=$1
 
     cd ${PROJECT_PATH}/${server}
@@ -28,8 +28,8 @@ start() {
     nohup ./${server} -c ../conf/$server.yaml > ${PROJECT_PATH}/logs/${server}.log 2>&1 &
 }
 
-config
-killProc "tcpserver"
-start "tcpserver"
-killProc "httpserver"
-start "httpserver"
+start_log
+closeProc "tcpserver"
+start_server "tcpserver"
+closeProc "httpserver"
+start_server "httpserver"

@@ -3,7 +3,7 @@ PROJECT_PATH=$(pwd)
 installPackages(){
     echo "start install Packages..."
     go get -u github.com/jinzhu/gorm
-    go get -u github.com/astaxie/beego/logs
+    go get -u github.com/astaxie/beego/core/logs
     go get -u github.com/gin-gonic/gin
     go get -u github.com/go-redis/redis
     go get -u google.golang.org/grpc

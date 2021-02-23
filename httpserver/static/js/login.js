@@ -3,9 +3,9 @@ function login() {
     var password = document.getElementById("password")
 
     if (username.value == "") {
-        alert("请输入用户名")
+        alert("please enter the username")
     } else if (password.value == "") {
-        alert("请输入密码")
+        alert("please enter the password")
     }
     if (!username.value.match(/^\S{2,20}$/)) {
         console.log("get focus")
@@ -37,7 +37,7 @@ function login() {
                 //window.location.href = "http://192.168.33.10:8080/static/index.html"
                 window.event.returnValue = false
             } else {
-                alert("账号或密码错误。")
+                alert("Wrong username or password, please enter again")
             }
         }
     }

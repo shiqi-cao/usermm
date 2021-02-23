@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>登录页面</title>
+    <title>login page</title>
  
     <link rel="stylesheet" type="text/css" href="css/login.css"/>
     <script src="http://libs.baidu.com/jquery/2.0.0/jquery.js"></script>
@@ -11,11 +11,11 @@
  
 <body>
 <div>
-    <img src="" id="headurl" alt="你没有头像，可以上传一个">
+    <img src="" id="headurl" alt="please upload an avatar">
     <p>
-	选择文件:
+	select:
 	<input type="file" id="ipt-file"/>
-	<button type="button" id="btn_upload">上传</button>
+	<button type="button" id="btn_upload">upload</button>
 	</p>
 	<div class="progress-bar">
 	<div class="progress"  id="progress"></div>
@@ -23,11 +23,11 @@
     <p id="info"></p>
 </div>
 <div id="user_frame">
-    <p><label class="label_input">用户名</label><input type="text" id="username" class="text_field"/></p>
-    <p><label class="label_input">昵称</label><input type="text" id="nickname" class="text_field"/></p>
+    <p><label class="label_input">username</label><input type="text" id="username" class="text_field"/></p>
+    <p><label class="label_input">nickname</label><input type="text" id="nickname" class="text_field"/></p>
     <div id="login_control">
-        <input type="button" id="btn_edit" value="修改昵称"/>
-        <input type="button" id="btn_logout" value="登出"/>
+        <input type="button" id="btn_edit" value="edit nickname"/>
+        <input type="button" id="btn_logout" value="logout"/>
      </div>
 </div>
  
@@ -48,7 +48,7 @@
     progress = document.querySelector("#progress"),
     info = document.querySelector("#info");
 
-    var headurl = document.getElementById('headurl')
+    var haedurl = document.getElementById('headurl')
     var username = document.getElementById('username')
     from_username = getQueryVariable('name')
     console.log("username:" + from_username)
@@ -65,7 +65,7 @@
 
             if (json.code != 0) {
                 console.log(json.msg)
-                alert("请先登录!" + json.msg)
+                alert("Please login. " + json.msg)
                 window.location.href = "http://192.168.33.10:8080/static/login.html"
             }
 
@@ -90,9 +90,9 @@
             if (xhr.readyState == 4 && xhr.status == 200) {
                 var json = eval("("+xhr.responseText+")");
                 if (json.code == 0) {
-                    alert('登出成功!')
+                    alert('Log out succ')
                 } else {
-                    alert("登出失败:" + json.msg)
+                    alert("an unexpected error happened:" + json.msg)
                 }
             }
         }
@@ -101,12 +101,7 @@
     btn_edit.onclick = function() {
         var newNickname = nickname.value
         if (newNickname.length < 1) {
-            alert('昵称长度不能小于1')
-            return
-        }
-
-        if (newNickname == previousNickname) {
-            alert('昵称没有改变')
+            alert('nickname cannot be empty!')
             return
         }
 
@@ -119,9 +114,9 @@
             if (xhr.readyState == 4 && xhr.status == 200) {
                 var json = eval("("+xhr.responseText+")");
                 if (json.code == 0) {
-                    alert('修改成功')
+                    alert("nickname has been succ edited")
                 } else {
-                    alert("修改失败:" + json.msg)
+                    alert("failed to edit:" + json.msg)
                 }
             }
         }
@@ -129,7 +124,7 @@
 
     var upload = function() {
 	if (input.files.length === 0) {
-		console.log("未选择文件");
+		console.log("no file selected");
 		return;
 	}
 
@@ -144,7 +139,7 @@
 			if (json.code == 0 && json.data.headurl != "") {
 				headurl.src = json.data.headurl
 			} else {
-				alert("修改头像失败:" + json.msg)
+				alert("Failed to edit avatar:" + json.msg)
 			}
 		}
 	};

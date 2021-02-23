@@ -1,183 +1,178 @@
 package gpool
 
 import (
-    "context"
-    "sync"
-    "time"
-    "errors"
+	"context"
+	"errors"
+	"sync"
+	"time"
 
-    "google.golang.org/grpc"
+	"google.golang.org/grpc"
 )
 
 var (
-    // ErrInvalidConfig  config invalid
-    ErrInvalidConfig = errors.New("gpool : invalid pool config")
-    // ErrTimeout get conn timeout
-    ErrTimeout       = errors.New("gpool : get conn timeout")
-    // ErrPoolClosed pool has been closed
-    ErrPoolClosed    = errors.New("gpool : pool is closed")
-    // ErrPoolFulled pool is fulled
-    ErrPoolFulled    = errors.New("gpool : pool is full")
+	ErrInvalidConfig = errors.New("gpool : invalid pool config input")
+	ErrTimeout       = errors.New("gpool : get conn timeout")
+	ErrPoolClosed    = errors.New("gpool : pool has been closed")
+	ErrPoolFulled    = errors.New("gpool : pool is full")
 )
 
-// Factory function type to create grpc.ClientConn object
+// Factory is a function type to create grpc.ClientConn object
 type Factory func() (*grpc.ClientConn, error)
 
-// Conn a wrapper of grpc client
+// Conn - a wrapper of grpc client
 type Conn struct {
-    C         *grpc.ClientConn  // connection object
-    lastUsed  time.Time         // timestamp used last time
+	C        *grpc.ClientConn // connection object
+	lastUsed time.Time        // last used timestamp
 }
 
-// GPool simillar to nginx connection with idle timeout
+// GPool object
 type GPool struct {
-    factory   Factory        // factory method to create connection
-    conns     chan Conn      // connections' chan
+	factory Factory   // factory method to create connection
+	conns   chan Conn // connection channel
 
-    init      uint32         // init pool size
-    capacity  uint32         // max pool size
+	init     uint32 // init pool size
+	capacity uint32 // max pool size
 
-    maxIdle   time.Duration  // how long an idle connection remains open
+	maxIdle time.Duration // how long an idle connection remains open
 
-    rwl       sync.RWMutex   // read-write mutex
+	rwl sync.RWMutex // read-write mutex
 }
 
-// NewPool create pool
+// create pool func
 func NewPool(factory Factory, init, capacity uint32, maxIdle time.Duration) (*GPool, error) {
-    // check input args
-    if init < 0 || capacity <= 0 || capacity < init {
-        return nil, ErrInvalidConfig
-    }
+	// check input args
+	if init < 0 || capacity <= 0 || capacity < init {
+		return nil, ErrInvalidConfig
+	}
 
-    // create pool
-    p := &GPool{
-        conns :    make(chan Conn, capacity),
-        factory :  factory,
-        maxIdle :  maxIdle,
+	// create pool instance
+	p := &GPool{
+		conns:   make(chan Conn, capacity),
+		factory: factory,
+		maxIdle: maxIdle,
 
-        init :     init,
-        capacity : capacity,
-    }
+		init:     init,
+		capacity: capacity,
+	}
 
-    // create conns with size : init
-    var idx uint32
-    for idx = 0; idx < init; idx++ {
-        c, err := factory()
-        if err != nil {
-            return nil, err
-        }
+	// create conns with size : init
+	var idx uint32
+	for idx = 0; idx < init; idx++ {
+		c, err := factory()
+		if err != nil {
+			return nil, err
+		}
 
-        p.conns <- Conn{
-            C :        c,
-            lastUsed : time.Now(),
-        }
-    }
+		p.conns <- Conn{
+			C:        c,
+			lastUsed: time.Now(),
+		}
+	}
 
-    // fill the rest with empty conns
-    rest := capacity - init
-    for idx = 0; idx < rest; idx++ {
-        p.conns <- Conn{}
-    }
+	// fill the rest with empty conns
+	rest := capacity - init
+	for idx = 0; idx < rest; idx++ {
+		p.conns <- Conn{}
+	}
 
-    return p, nil
+	return p, nil
 }
 
 // Capacity  capacity of pool
-func (p* GPool) Capacity() uint32 {
-    conns := p.getConnsRLock()
-    if conns == nil {
-        return 0
-    }
-    return uint32(cap(conns))
+func (p *GPool) Capacity() uint32 {
+	conns := p.getConnsRLock()
+	if conns == nil {
+		return 0
+	}
+	return uint32(cap(conns))
 }
 
 // Available  available connection
-func (p* GPool) Available() uint32 {
-    conns := p.getConnsRLock()
-    if conns == nil {
-        return 0
-    }
-    return uint32(len(conns))
+func (p *GPool) Available() uint32 {
+	conns := p.getConnsRLock()
+	if conns == nil {
+		return 0
+	}
+	return uint32(len(conns))
 }
 
 // get conns
-func (p* GPool) getConnsRLock() chan Conn {
-    p.rwl.RLock()
-    defer p.rwl.RUnlock()
+func (p *GPool) getConnsRLock() chan Conn {
+	p.rwl.RLock()
+	defer p.rwl.RUnlock()
 
-    return p.conns
+	return p.conns
 }
 
 // Get get conn with context
-func (p* GPool) Get(ctx context.Context) (*Conn, error) {
-    conns := p.getConnsRLock()
-    if conns == nil {
-        return nil, ErrPoolClosed
-    }
+func (p *GPool) Get(ctx context.Context) (*Conn, error) {
+	conns := p.getConnsRLock()
+	if conns == nil {
+		return nil, ErrPoolClosed
+	}
 
-    // fetch conn until timeout
-    var conn Conn
-    select {
-        case conn = <-conns:
-            // do nothing
-        case <-ctx.Done():
-            return nil, ErrTimeout
-    }
+	// fetch conn until timeout
+	var conn Conn
+	select {
+	case conn = <-conns:
+		// do nothing
+	case <-ctx.Done():
+		return nil, ErrTimeout
+	}
 
-    // check its idle time and reset connection if needed
-    if conn.C != nil && p.maxIdle > 0 &&
-                        conn.lastUsed.Add(p.maxIdle).Before(time.Now()) {
-        conn.C.Close()
-        conn.C = nil
-    }
+	// check its idle time and reset connection if needed
+	if conn.C != nil && p.maxIdle > 0 &&
+		conn.lastUsed.Add(p.maxIdle).Before(time.Now()) {
+		conn.C.Close()
+		conn.C = nil
+	}
 
-    // create one if needed
-    var err error
-    if conn.C == nil {
-        conn.C, err = p.factory()
-        if err != nil { // if failed, should return this conn to pool
-            conns <- Conn{}
-        }
-    }
-    return &conn, err
+	// create one if needed
+	var err error
+	if conn.C == nil {
+		conn.C, err = p.factory()
+		if err != nil { // if failed, should return this conn to pool
+			conns <- Conn{}
+		}
+	}
+	return &conn, err
 }
 
 // Put return conn to pool
 func (p *GPool) Put(conn *Conn) error {
-    nconn := Conn{
-        C :        conn.C,
-        lastUsed : time.Now(), // update lastUsed
-    }
+	nconn := Conn{
+		C:        conn.C,
+		lastUsed: time.Now(), // update lastUsed
+	}
 
-    select {
-        case p.conns <- nconn:
-            // do nothing
-        default:
-            return ErrPoolFulled
-    }
-    return nil
+	select {
+	case p.conns <- nconn:
+		// do nothing
+	default:
+		return ErrPoolFulled
+	}
+	return nil
 }
 
 // Close close conns of pool
 func (p *GPool) Close() {
-    // fetch connes : rwlock
-    p.rwl.Lock()
-    conns := p.conns
-    p.conns = nil
-    p.rwl.Unlock()
+	// fetch connes : rwlock
+	p.rwl.Lock()
+	conns := p.conns
+	p.conns = nil
+	p.rwl.Unlock()
 
-    // close them
-    if conns == nil {
-        return
-    }
+	// close them
+	if conns == nil {
+		return
+	}
 
-    var idx uint32
-    for idx = 0; idx < p.capacity; idx++ {
-        conn := <-conns
-        if conn.C != nil {
-            conn.C.Close()
-        }
-    }
-    close(conns)
+	var idx uint32
+	for idx = 0; idx < p.capacity; idx++ {
+		conn := <-conns
+		if conn.C != nil {
+			conn.C.Close()
+		}
+	}
+	close(conns)
 }
-
